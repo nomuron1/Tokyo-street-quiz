@@ -39,7 +39,7 @@
     let currentHighlightedLayer = null;
 
     // GeoJSON読み込み
-    fetch('street.geojson')
+    fetch('https://raw.githubusercontent.com/nomuron1/Tokyo-street-quiz/refs/heads/main/street.geojson')
       .then(res => res.json())
       .then(data => {
         geojsonLayer = L.geoJSON(data, {
@@ -147,3 +147,4 @@
   </script>
 </body>
 </html>
+
