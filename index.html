@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>通り名クイズ</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    #map { height: 400px; margin-bottom: 10px; }
+    .quiz-container { font-family: Arial; padding: 10px; }
+    .highlight { color: red; weight: 5; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="quiz-container">
+    <h2>通り名クイズ</h2>
+    <p id="question"></p>
+    <select id="answer">
+      <option value="">選択してください</option>
+    </select>
+    <button id="submit">回答</button>
+    <p id="feedback"></p>
+    <p>スコア: <span id="score">0</span></p>
+    <button id="review">間違えた問題を復習</button>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([35.68, 139.76], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    let geojsonLayer;
+    let questions = [];
+    let currentQuestion = null;
+    let score = 0;
+    let wrongAnswers = [];
+    let currentHighlightedLayer = null;
+
+    // GeoJSON読み込み
+    fetch('street.geojson')
+      .then(res => res.json())
+      .then(data => {
+        geojsonLayer = L.geoJSON(data, {
+          style: feature => ({ color: 'blue', weight: 3 }),
+          onEachFeature: (feature, layer) => {
+            if ([1, 2].includes(feature.properties.rank)) {
+              questions.push(feature);
+            }
+          }
+        }).addTo(map);
+
+        startQuiz();
+      });
+
+    // クイズ開始
+    function startQuiz() {
+      shuffleArray(questions);
+      nextQuestion();
+    }
+
+    function nextQuestion() {
+      if (questions.length === 0) {
+        document.getElementById('question').textContent = 'クイズ終了！';
+        document.getElementById('submit').disabled = true;
+        return;
+      }
+
+      currentQuestion = questions.pop();
+      const questionText = `この通りはどこ？`;
+      document.getElementById('question').textContent = questionText;
+
+      const options = generateOptions(currentQuestion);
+      const select = document.getElementById('answer');
+      select.innerHTML = '<option value="">選択してください</option>';
+      options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt;
+        option.textContent = opt;
+        select.appendChild(option);
+      });
+
+      // ハイライト設定
+      if (currentHighlightedLayer) {
+        geojsonLayer.resetStyle(currentHighlightedLayer);
+      }
+
+      geojsonLayer.eachLayer(layer => {
+        if (layer.feature === currentQuestion) {
+          currentHighlightedLayer = layer;
+          layer.setStyle({ color: 'red', weight: 6 });
+          // 自動ズーム
+          map.fitBounds(layer.getBounds(), { maxZoom: 16 });
+        }
+      });
+    }
+
+    // 回答チェック
+    document.getElementById('submit').addEventListener('click', () => {
+      const answer = document.getElementById('answer').value;
+      if (!answer) return;
+
+      const correct = currentQuestion.properties.name;
+      if (answer === correct) {
+        score++;
+        document.getElementById('feedback').textContent = '正解！';
+      } else {
+        wrongAnswers.push(currentQuestion);
+        document.getElementById('feedback').textContent = `不正解！正解は ${correct}`;
+      }
+
+      document.getElementById('score').textContent = score;
+      nextQuestion();
+    });
+
+    // 間違えた問題を復習
+    document.getElementById('review').addEventListener('click', () => {
+      if (wrongAnswers.length === 0) {
+        alert('間違えた問題はありません');
+        return;
+      }
+      questions = wrongAnswers;
+      wrongAnswers = [];
+      startQuiz();
+    });
+
+    // 選択肢シャッフル
+    function generateOptions(correctFeature) {
+      const names = [correctFeature.properties.name];
+      while (names.length < 4 && questions.length > names.length) {
+        const randomFeature = questions[Math.floor(Math.random() * questions.length)];
+        if (!names.includes(randomFeature.properties.name)) {
+          names.push(randomFeature.properties.name);
+        }
+      }
+      shuffleArray(names);
+      return names;
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+  </script>
+</body>
+</html>
