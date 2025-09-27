@@ -48,7 +48,7 @@
     }
 
     select, button {
-      font-size: 18px;
+      font-size: 15px;
       padding: 8px;
       width: 100%;
     }
@@ -58,8 +58,8 @@
       margin-top: 10px;
     }
 
-    /* メイン選択画面のスタイル */
-    #quiz-selection {
+    /* 全画面オーバーレイのスタイル */
+    .selection-overlay {
       position: absolute;
       top: 0;
       left: 0;
@@ -75,19 +75,13 @@
       font-size: 20px;
     }
 
-    /* サブ選択画面のスタイル */
-    #sub-quiz-selection {
-        display: none; /* 初期は非表示 */
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        gap: 20px;
-        font-size: 20px;
-    }
-
-    #quiz-selection button, #sub-quiz-selection button {
+    .selection-overlay button {
       width: 250px;
       padding: 15px;
+    }
+    
+    .hidden {
+        display: none !important;
     }
 
     @media (max-width: 768px) {
@@ -106,18 +100,26 @@
   </style>
 </head>
 <body>
-  <div id="quiz-selection">
+  <div id="quiz-selection" class="selection-overlay">
     <div id="main-selection">
         <h2>クイズの種類を選択</h2>
-        <button id="select-street">通り名クイズ<br> (street quiz)</button>
-        <button id="select-cross">交差点クイズ <br>(intersection quiz)</button>
+        <button id="select-street">通り名クイズ (street quiz)</button>
+        <button id="select-cross">交差点クイズ (intersection quiz)</button>
     </div>
     
-    <div id="sub-quiz-selection">
-        <h3>交差点クイズの種類を選択</h3>
-        <button id="select-cross-name">交差点名から位置を当てる</button>
+    <div id="sub-quiz-selection" class="hidden">
+        <h2>交差点クイズの種類を選択</h2>
+        <button id="select-cross-name">位置から交差点名を当てる</button>
         <button id="select-cross-street">通り名から交差点名を当てる</button>
-        <button id="back-to-main">メイン選択に戻る</button>
+        <button id="back-to-main-from-sub">メイン選択に戻る</button>
+    </div>
+    
+    <div id="question-count-selection" class="hidden">
+        <h3>問題数を選択</h3>
+        <button id="select-count-30">30問</button>
+        <button id="select-count-50">50問</button>
+        <button id="select-count-all">全問 (<span id="total-questions-display"></span>問)</button>
+        <button id="back-to-sub-from-count">戻る</button>
     </div>
   </div>
   
@@ -131,8 +133,10 @@
       </select>
       <button id="submit">回答</button>
       <p id="feedback"></p>
-      <p>スコア: <span id="score">0</span></p>
+      <p>スコア: <span id="current-score">0</span> / <span id="total-questions">0</span></p>
+      <p id="result-display"></p>
       <button id="review">間違えた問題を復習</button>
+      <button id="back-to-main-from-quiz">メインメニューに戻る</button>
     </div>
   </div>
 
@@ -145,48 +149,63 @@
 
     let geojsonLayer = null; 
     let streetQuestions = [];
-    let crossQuestions = []; // 交差点データは全タイプで共通
+    let crossQuestions = [];
     let currentQuestions = []; 
     let score = 0;
+    let totalQuestions = 0; // 全問題数
     let wrongAnswers = [];
     let currentHighlightedLayer = null;
     let currentQuizType = null; // 'street', 'cross_name', 'cross_street' のいずれか
+    let selectedQuizInitialData = null; // 選択されたクイズの全データ (streetQuestions または crossQuestions)
 
-    // クイズ選択の要素
+    // DOM要素
     const quizSelectionDiv = document.getElementById('quiz-selection');
     const mainSelectionDiv = document.getElementById('main-selection');
     const subSelectionDiv = document.getElementById('sub-quiz-selection');
+    const countSelectionDiv = document.getElementById('question-count-selection');
+    const totalQuestionsDisplay = document.getElementById('total-questions-display');
+
     const selectStreetBtn = document.getElementById('select-street');
     const selectCrossBtn = document.getElementById('select-cross');
     const selectCrossNameBtn = document.getElementById('select-cross-name');
     const selectCrossStreetBtn = document.getElementById('select-cross-street');
-    const backToMainBtn = document.getElementById('back-to-main');
+    const backToMainFromSubBtn = document.getElementById('back-to-main-from-sub');
+    const backToMainFromQuizBtn = document.getElementById('back-to-main-from-quiz');
+    const backToSubFromCountBtn = document.getElementById('back-to-sub-from-count');
+    
+    const selectCount30 = document.getElementById('select-count-30');
+    const selectCount50 = document.getElementById('select-count-50');
+    const selectCountAll = document.getElementById('select-count-all');
+    
     const quizTitle = document.getElementById('quiz-title');
+    const currentScoreSpan = document.getElementById('current-score');
+    const totalQuestionsSpan = document.getElementById('total-questions');
+    const resultDisplay = document.getElementById('result-display');
+    const submitBtn = document.getElementById('submit');
+    const reviewBtn = document.getElementById('review');
 
-    // 通り名クイズの「正解名」を取得するヘルパー関数
+
+    // --- ヘルパー関数 ---
+
     function getStreetName(feature) {
       return feature.properties.name;
     }
 
-    // 交差点クイズの「正解名」を取得するヘルパー関数
     function getCrossName(feature) {
       return feature.properties["交差点名"]; 
     }
     
-    // 通り名から交差点名クイズの「正解名」を取得するヘルパー関数
     function getStreetIntersectionName(feature) {
         return feature.properties["交差点名"];
     }
 
-    // 通り名レイヤーのデフォルトスタイル（交差点クイズ時など）
     const defaultStreetStyle = {
-      color: '#87ceeb', // ユーザー要望の水色
+      color: '#87ceeb', // スカイブルー
       weight: 2,      
       opacity: 0.8,
       interactive: true 
     };
 
-    // 通り名クイズ時のスタイル（問題でない線）
     const streetQuizBaseStyle = {
       color: 'blue', 
       weight: 3, 
@@ -194,107 +213,6 @@
       interactive: false 
     };
 
-    // GeoJSON読み込み（通り名: street.geojson）
-    fetch('street.geojson')
-      .then(res => res.json())
-      .then(data => {
-        geojsonLayer = L.geoJSON(data, {
-          style: defaultStreetStyle, 
-          onEachFeature: (feature, layer) => {
-            if (feature.properties.rank && [1, 2].includes(feature.properties.rank)) {
-              streetQuestions.push(feature);
-            }
-            
-            // ポップアップ表示
-            if (feature.properties.name) {
-              layer.bindPopup(feature.properties.name);
-            }
-
-            layer.on('click', () => {
-              // 交差点クイズの時だけポップアップを出す
-              if (currentQuizType === 'cross_name' || currentQuizType === 'cross_street') {
-                layer.openPopup();
-              }
-            });
-          }
-        }).addTo(map);
-
-        geojsonLayer.bringToBack();
-      })
-      .catch(error => {
-        console.error('Error loading street.geojson:', error);
-        selectStreetBtn.disabled = true;
-        selectStreetBtn.textContent += ' (ファイルが見つかりません)';
-      });
-
-    // GeoJSON読み込み（交差点: intersection_pro.geojson）
-    fetch('intersection_pro.geojson') 
-      .then(res => res.json())
-      .then(data => {
-        // 交差点名があり、Street1, street2も存在するものを問題とする
-        crossQuestions = data.features.filter(f => 
-            f.properties && 
-            f.properties["交差点名"] && 
-            f.properties.Street1 && 
-            f.properties.street2
-        );
-      })
-      .catch(error => {
-        console.error('Error loading intersection_pro.geojson:', error);
-        selectCrossBtn.disabled = true;
-        selectCrossBtn.textContent += ' (ファイルが見つかりません)';
-      });
-
-    // --- イベントリスナー ---
-
-    // メイン選択 -> 通り名クイズ
-    selectStreetBtn.addEventListener('click', () => {
-      if (streetQuestions.length === 0) {
-        alert('通り名データが読み込まれていません。');
-        return;
-      }
-      currentQuizType = 'street';
-      quizTitle.textContent = '通り名クイズ';
-      quizSelectionDiv.style.display = 'none';
-      startQuiz(streetQuestions);
-    });
-
-    // メイン選択 -> 交差点クイズ (サブ選択へ移行)
-    selectCrossBtn.addEventListener('click', () => {
-      if (crossQuestions.length === 0) {
-        alert('交差点データが読み込まれていません。');
-        return;
-      }
-      mainSelectionDiv.style.display = 'none';
-      subSelectionDiv.style.display = 'flex';
-    });
-
-    // サブ選択 -> 交差点名から位置を当てる
-    selectCrossNameBtn.addEventListener('click', () => {
-        currentQuizType = 'cross_name';
-        quizTitle.textContent = '交差点名クイズ (交差点名から位置)';
-        quizSelectionDiv.style.display = 'none';
-        startQuiz(crossQuestions);
-    });
-
-    // サブ選択 -> 通り名から交差点名を当てる
-    selectCrossStreetBtn.addEventListener('click', () => {
-        currentQuizType = 'cross_street';
-        quizTitle.textContent = '交差点名クイズ (通り名から交差点名)';
-        quizSelectionDiv.style.display = 'none';
-        startQuiz(crossQuestions);
-    });
-
-    // サブ選択 -> メインに戻る
-    backToMainBtn.addEventListener('click', () => {
-        subSelectionDiv.style.display = 'none';
-        mainSelectionDiv.style.display = 'flex';
-    });
-
-
-    // --- クイズロジック関数 ---
-
-    // 全レイヤーのスタイルをリセットし、新しいスタイルを適用する関数
     function setStreetLayerStyle(style) {
       if (geojsonLayer) {
         geojsonLayer.eachLayer(layer => {
@@ -305,23 +223,139 @@
       }
     }
 
-    // クイズ開始
-    function startQuiz(initialQuestions) {
-      // クイズタイプに応じて通り名レイヤーのスタイルを設定
+    function resetQuizState() {
+        score = 0;
+        totalQuestions = 0;
+        wrongAnswers = [];
+        currentQuestions = [];
+        currentQuizType = null;
+        selectedQuizInitialData = null;
+
+        // UIリセット
+        currentScoreSpan.textContent = '0';
+        totalQuestionsSpan.textContent = '0';
+        resultDisplay.textContent = '';
+        document.getElementById('feedback').textContent = '';
+        document.getElementById('question').textContent = '';
+        document.getElementById('answer').innerHTML = '<option value="">選択してください</option>';
+        submitBtn.disabled = true;
+        reviewBtn.disabled = true; 
+    }
+    
+    function showMainSelection() {
+        resetQuizState();
+        quizSelectionDiv.classList.remove('hidden');
+        mainSelectionDiv.classList.remove('hidden');
+        subSelectionDiv.classList.add('hidden');
+        countSelectionDiv.classList.add('hidden');
+    }
+    
+    function showSubSelection() {
+        mainSelectionDiv.classList.add('hidden');
+        subSelectionDiv.classList.remove('hidden');
+    }
+
+    function showCountSelection(initialData) {
+        selectedQuizInitialData = initialData;
+        
+        mainSelectionDiv.classList.add('hidden');
+        subSelectionDiv.classList.add('hidden');
+        countSelectionDiv.classList.remove('hidden');
+        
+        const count = initialData.length;
+        totalQuestionsDisplay.textContent = count;
+        
+        // 問題数が足りない場合のボタン無効化
+        selectCount30.disabled = count < 30;
+        selectCount50.disabled = count < 50;
+    }
+    
+    function displayResult() {
+        const percentage = totalQuestions > 0 ? ((score / totalQuestions) * 100).toFixed(1) : 0;
+        resultDisplay.textContent = `正答率: ${percentage}%`;
+        submitBtn.disabled = true;
+        reviewBtn.disabled = wrongAnswers.length === 0;
+    }
+    
+    function loadInitialData() {
+        // GeoJSON読み込み（通り名: street.geojson）
+        fetch('street.geojson')
+          .then(res => res.json())
+          .then(data => {
+            geojsonLayer = L.geoJSON(data, {
+              style: defaultStreetStyle, 
+              onEachFeature: (feature, layer) => {
+                if (feature.properties.rank && [1, 2].includes(feature.properties.rank)) {
+                  streetQuestions.push(feature);
+                }
+                if (feature.properties.name) {
+                  layer.bindPopup(feature.properties.name);
+                }
+                layer.on('click', () => {
+                  if (currentQuizType && currentQuizType !== 'street') {
+                    layer.openPopup();
+                  }
+                });
+              }
+            }).addTo(map);
+            geojsonLayer.bringToBack();
+            selectStreetBtn.textContent = `通り名クイズ (全${streetQuestions.length}問)`;
+          })
+          .catch(error => {
+            console.error('Error loading street.geojson:', error);
+            selectStreetBtn.disabled = true;
+            selectStreetBtn.textContent = '通り名クイズ (ファイルが見つかりません)';
+          });
+
+        // GeoJSON読み込み（交差点: intersection_pro.geojson）
+        fetch('intersection_pro.geojson') 
+          .then(res => res.json())
+          .then(data => {
+            crossQuestions = data.features.filter(f => 
+                f.properties && 
+                f.properties["交差点名"] && 
+                f.properties.Street1 && 
+                f.properties.street2
+            );
+            selectCrossBtn.textContent = `交差点クイズ (全${crossQuestions.length}問)`;
+          })
+          .catch(error => {
+            console.error('Error loading intersection_pro.geojson:', error);
+            selectCrossBtn.disabled = true;
+            selectCrossBtn.textContent = '交差点クイズ (ファイルが見つかりません)';
+          });
+    }
+
+    // --- クイズロジック関数 ---
+
+    function startQuiz(initialQuestions, count) {
+      // スタイル設定
       if (currentQuizType === 'cross_name' || currentQuizType === 'cross_street') {
-        setStreetLayerStyle(defaultStreetStyle); // 交差点クイズ: 水色、クリック可能
+        setStreetLayerStyle(defaultStreetStyle); 
       } else if (currentQuizType === 'street') {
-        setStreetLayerStyle(streetQuizBaseStyle); // 通り名クイズ: 濃い青、クリック不可
+        setStreetLayerStyle(streetQuizBaseStyle); 
       }
 
       score = 0;
       wrongAnswers = [];
-      document.getElementById('score').textContent = score;
-      document.getElementById('feedback').textContent = '';
-      document.getElementById('submit').disabled = false;
       
-      currentQuestions = [...initialQuestions]; 
-      shuffleArray(currentQuestions);
+      const questionCount = count === 'all' ? initialQuestions.length : count;
+      totalQuestions = questionCount;
+      
+      // 問題のシャッフルとカット
+      let shuffledQuestions = [...initialQuestions]; 
+      shuffleArray(shuffledQuestions);
+      currentQuestions = shuffledQuestions.slice(0, questionCount);
+
+      // UIリセット＆更新
+      quizSelectionDiv.classList.add('hidden');
+      currentScoreSpan.textContent = '0';
+      totalQuestionsSpan.textContent = totalQuestions;
+      resultDisplay.textContent = '';
+      document.getElementById('feedback').textContent = '';
+      submitBtn.disabled = false;
+      reviewBtn.disabled = true; 
+      
       nextQuestion();
     }
 
@@ -338,8 +372,8 @@
       });
       
       if (currentQuestions.length === 0) {
-        document.getElementById('question').textContent = 'クイズ終了！間違えた問題は「復習」ボタンで再チャレンジできます。';
-        document.getElementById('submit').disabled = true;
+        document.getElementById('question').textContent = 'クイズ終了！';
+        displayResult(); // 正答率を表示
         return;
       }
 
@@ -348,7 +382,7 @@
 
       // 問題文の生成とマップ描画
       if (currentQuizType === 'street') {
-        questionText = `この通りはどこ？`;
+        questionText = `第${totalQuestions - currentQuestions.length}問：この通りはどこ？`;
         // 通り名クイズ: ハイライト
         geojsonLayer.eachLayer(layer => {
           if (layer.feature === currentQuestion) {
@@ -358,7 +392,7 @@
           }
         });
       } else if (currentQuizType === 'cross_name') {
-        questionText = `この交差点はどこ？`;
+        questionText = `第${totalQuestions - currentQuestions.length}問：この交差点はどこ？`;
         // 交差点名クイズ (位置): マーカー表示
         const coords = currentQuestion.geometry.coordinates;
         const marker = L.marker([coords[1], coords[0]], { isQuizMarker: true }).addTo(map);
@@ -367,7 +401,7 @@
         // 通り名から交差点名クイズ: マーカーは表示せず、中心にズームのみ
         const s1 = currentQuestion.properties.Street1;
         const s2 = currentQuestion.properties.street2;
-        questionText = `「${s1}」と「${s2}」の交差点名は？`;
+        questionText = `第${totalQuestions - currentQuestions.length}問：「${s1}」と「${s2}」の交差点名は？`;
         const coords = currentQuestion.geometry.coordinates;
         map.setView([coords[1], coords[0]], 16);
       }
@@ -389,7 +423,7 @@
     }
 
     // 回答チェック
-    document.getElementById('submit').addEventListener('click', () => {
+    submitBtn.addEventListener('click', () => {
       const answer = document.getElementById('answer').value;
       if (!answer) return;
 
@@ -415,12 +449,14 @@
         document.getElementById('feedback').textContent = `不正解！正解は ${correct}`;
       }
 
-      document.getElementById('score').textContent = score;
-      nextQuestion();
+      currentScoreSpan.textContent = score;
+      
+      // 次の問題へ
+      setTimeout(nextQuestion, 500); // 0.5秒のディレイ
     });
 
     // 間違えた問題を復習
-    document.getElementById('review').addEventListener('click', () => {
+    reviewBtn.addEventListener('click', () => {
       if (wrongAnswers.length === 0) {
         alert('間違えた問題はありません');
         return;
@@ -429,20 +465,23 @@
       const reviewSet = wrongAnswers.map(wa => wa.feature);
       const reviewType = wrongAnswers[0].type; 
 
-      wrongAnswers = [];
+      // 復習用のスコアをリセット
+      score = 0; 
+      wrongAnswers = []; // 復習中に間違えた問題は次回復習に回す
       currentQuizType = reviewType; 
       
       let reviewTitleText;
       if (reviewType === 'street') {
           reviewTitleText = '通り名クイズ（復習）';
       } else if (reviewType === 'cross_name') {
-          reviewTitleText = '交差点名クイズ (交差点名から位置)（復習）';
+          reviewTitleText = '交差点名クイズ (位置から交差点名)（復習）';
       } else if (reviewType === 'cross_street') {
           reviewTitleText = '交差点名クイズ (通り名から交差点名)（復習）';
       }
       quizTitle.textContent = reviewTitleText;
       
-      startQuiz(reviewSet);
+      // 復習モード開始
+      startQuiz(reviewSet, 'all'); 
     });
 
     // 選択肢シャッフル
@@ -459,6 +498,7 @@
       const correctName = getName(correctFeature);
       const names = [correctName];
       
+      // 選択肢を生成（最大4つ）
       while (names.length < 4) {
         const randomIndex = Math.floor(Math.random() * allFeatures.length);
         const randomFeature = allFeatures[randomIndex];
@@ -479,6 +519,64 @@
         [array[i], array[j]] = [array[j], array[i]];
       }
     }
+
+    // --- イベントリスナー（選択画面） ---
+
+    // メイン選択 -> 通り名クイズ
+    selectStreetBtn.addEventListener('click', () => {
+      if (streetQuestions.length === 0) return;
+      currentQuizType = 'street';
+      quizTitle.textContent = '通り名クイズ';
+      showCountSelection(streetQuestions);
+      document.getElementById('back-to-sub-from-count').classList.add('hidden'); // 通り名クイズはサブメニューがないため非表示
+    });
+
+    // メイン選択 -> 交差点クイズ (サブ選択へ移行)
+    selectCrossBtn.addEventListener('click', () => {
+      if (crossQuestions.length === 0) return;
+      showSubSelection();
+    });
+
+    // サブ選択 -> 交差点名から位置を当てる
+    selectCrossNameBtn.addEventListener('click', () => {
+        currentQuizType = 'cross_name';
+        quizTitle.textContent = '交差点名クイズ (交差点名から位置)';
+        showCountSelection(crossQuestions);
+        document.getElementById('back-to-sub-from-count').classList.remove('hidden'); // サブメニューに戻るボタンを表示
+    });
+
+    // サブ選択 -> 通り名から交差点名を当てる
+    selectCrossStreetBtn.addEventListener('click', () => {
+        currentQuizType = 'cross_street';
+        quizTitle.textContent = '交差点名クイズ (通り名から交差点名)';
+        showCountSelection(crossQuestions);
+        document.getElementById('back-to-sub-from-count').classList.remove('hidden'); // サブメニューに戻るボタンを表示
+    });
+
+    // メインメニューに戻る
+    backToMainFromSubBtn.addEventListener('click', showMainSelection);
+    backToMainFromQuizBtn.addEventListener('click', showMainSelection);
+
+    // 問題数選択から戻る
+    backToSubFromCountBtn.addEventListener('click', () => {
+        if (currentQuizType === 'street') {
+            // 通り名クイズの場合はメインに戻る
+            showMainSelection();
+        } else {
+            // 交差点クイズの場合はサブメニューに戻る
+            countSelectionDiv.classList.add('hidden');
+            subSelectionDiv.classList.remove('hidden');
+        }
+    });
+
+
+    // 問題数選択 -> クイズ開始
+    selectCount30.addEventListener('click', () => startQuiz(selectedQuizInitialData, 30));
+    selectCount50.addEventListener('click', () => startQuiz(selectedQuizInitialData, 50));
+    selectCountAll.addEventListener('click', () => startQuiz(selectedQuizInitialData, 'all'));
+
+    // データの読み込み
+    loadInitialData();
   </script>
 </body>
 </html>
