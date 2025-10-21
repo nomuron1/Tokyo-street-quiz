@@ -1,6 +1,6 @@
 const map = L.map("map").setView([35.68, 139.76], 13);
 L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png", {
-  attribution: "地理院タイル",
+  attribution: '<a href= "https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>',
 }).addTo(map);
 
 let geojsonLayer = null;
