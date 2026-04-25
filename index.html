@@ -13,25 +13,29 @@
         <div id="quiz-selection" class="selection-overlay">
             <div id="main-selection">
                 <h2>クイズの種類を選択</h2>
-                <button id="select-street">通り名クイズ (street quiz)</button>
-                <button id="select-cross">
-                    交差点クイズ (intersection quiz)
-                </button>
+                <button id="select-street">通り名クイズ <i>(Street quiz)</i> </button>
+                <button id="select-cross">交差点クイズ <i>(Intersection quiz)</i> </button>
             </div>
 
             <div id="sub-quiz-selection" class="hidden">
                 <h2>交差点クイズの種類を選択</h2>
                 <button id="select-cross-name">位置から交差点名を当てる</button>
-                <button id="select-cross-street">
-                    通り名から交差点名を当てる
-                </button>
+                <button id="select-cross-street">通り名から交差点名を当てる</button>
                 <button id="back-to-main-from-sub">メイン選択に戻る</button>
+            </div>
+
+            <div id="difficulty-selection" class="hidden">
+                <h2>難易度を選択</h2>
+                <button id="select-diff-beginner">初級 </button>
+                <button id="select-diff-intermediate">中級 </button>
+                <button id="select-diff-advanced">上級</button>
+                <button id="back-to-prev-from-diff">戻る</button>
             </div>
 
             <div id="question-count-selection" class="hidden">
                 <h3>問題数を選択</h3>
+                <button id="select-count-15">15問</button>
                 <button id="select-count-30">30問</button>
-                <button id="select-count-50">50問</button>
                 <button id="select-count-all">
                     全問 (<span id="total-questions-display"></span>問)
                 </button>
