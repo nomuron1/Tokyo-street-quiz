@@ -41,15 +41,118 @@ body {
 }
 
 #answer {
+  color: #333333;
   text-align: center;
   text-align-last: center;
 }
 
+/*☆クイズの結果の表示用のスタイル*/
+#quiz-result-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+#quiz-result-box {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+#quiz-result-text { margin-bottom: 10px; }
+.hidden { display: none !important; }
+
+#results-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; overflow-y: auto; }
+.modal-content { background: white; margin: 5% auto; padding: 20px; width: 80%; border-radius: 8px; }
+.wrong-item { border-bottom: 1px solid #ccc; padding: 10px 0; }
+
+/* ★検索機能用のスタイル */
+#search-box {
+  margin-top: 25px;
+  border-top: 2px dashed #ccc;
+  padding-top: 15px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.search-form {
+  display: flex;
+  gap: 8px;
+}
+
+#search-input {
+  flex: 1;
+  padding: 10px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+#search-submit-btn {
+  width: auto;
+  padding: 0 20px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#search-submit-btn:hover {
+  background-color: #45a049;
+}
+
+#search-results-list {
+  margin-top: 10px;
+  max-height: 180px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.search-item {
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+  color: #333;
+}
+
+.search-item:hover {
+  background-color: #f5f5f5;
+}
+
+.search-item:last-child {
+  border-bottom: none;
+}
+
 select,
 button {
+  background: linear-gradient(
+    45deg, 
+    #6ea7cb,
+    #4a90e2
+  ) ;
+  color:#fff;
+  border-radius: 8px;
   font-size: 15px;
   padding: 8px;
   width: 100%;
+}
+button:hover {
+  background: linear-gradient(
+    45deg, 
+    #4a90e2,
+    #6ea7cb
+  ) ;
+  transform: scale(1.02);
 }
 
 #score {
@@ -80,6 +183,77 @@ button {
 }
 .hidden {
   display: none !important;
+}
+
+/* --- 結果一覧画面のスタイル --- */
+.results-header {
+  text-align: center;
+  border-bottom: 2px solid #ccc;
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.result-item {
+  border-bottom: 1px solid #eee;
+  padding: 12px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 正解時のテキストスタイル */
+.result-correct-title {
+  color: red;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+.result-correct-text {
+  color: #333;
+  margin-top: 4px;
+}
+
+/* 不正解時のテキストスタイル */
+.result-wrong-title {
+  color: blue;
+  font-weight: bold;
+  font-size: 1.1em;
+}
+.result-wrong-answer {
+  color: #666;
+  font-size: 0.85em;
+  margin-top: 4px;
+}
+.result-wrong-correct {
+  color: red;
+  font-weight: bold;
+}
+
+/* 「地図で確認」ボタン */
+.review-map-btn {
+  padding: 6px 12px;
+  cursor: pointer;
+  background-color: #e0f7fa;
+  border: 1px solid #00acc1;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+/* --- 復習画面（地図上）のスタイル --- */
+.review-mode-user {
+  color: blue;
+  font-size: 0.9em;
+  margin-bottom: 5px;
+}
+.review-mode-correct {
+  color: red;
+}
+
+/* 「結果一覧に戻る」ボタン */
+.back-to-results-btn {
+  margin-top: 15px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: bold;
 }
 
 @media (max-width: 768px) {
