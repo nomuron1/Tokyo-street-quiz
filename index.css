@@ -40,6 +40,24 @@ body {
   padding: 10px;
 }
 
+#sub-quiz-selection,
+#difficulty-selection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;  /* 横方向の中央揃え */
+  text-align: center;
+  width: 100%;
+}
+
+#sub-quiz-selection button,
+#difficulty-selection button {
+  width: 80%;           /* ボタンの幅を画面の80%に */
+  max-width: 300px;     /* ただし最大300pxまで（PCで見ても大きすぎないように） */
+  margin: 10px 0;       /* ボタンの上下に余白を設ける */
+  padding: 12px;        /* ボタンの内側に余白を作って押しやすくする */
+  font-size: 1rem;
+}
+
 #answer {
   color: #333333;
   text-align: center;
@@ -204,7 +222,7 @@ button:hover {
   width: 100%;
   height: 100%;
   background-color: rgba(255, 255, 255, 0.95);
-  z-index: 1000;
+  z-index: 2000;
   display: flex;
   flex-direction: column;
   justify-content: center;
