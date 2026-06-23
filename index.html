@@ -6,7 +6,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="./index.css" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg">
-
 </head>
 <body>
     <div id="quiz-selection" class="selection-overlay">
@@ -41,11 +40,24 @@
         </div>
 
         <div id="question-count-selection" class="hidden">
-            <h3>問題数を選択</h3>
-            <button id="select-count-15">15問</button>
-            <button id="select-count-30">30問</button>
-            <button id="select-count-all">全問 (<span id="total-questions-display"></span>問)</button>
-            <button id="back-to-sub-from-count">戻る</button>
+            <h2 style="text-align: center; margin-bottom: 20px;">出題数を選んでください</h2>
+            <div class="mode-group mode-quick">
+                <h3>🌱 手軽に遊ぶモード</h3>
+                <p>サクッと確認したい時に</p>
+                <button id="select-count-3">3問</button>
+                <button id="select-count-5">5問</button>
+                <button id="select-count-10">10問</button>
+            </div>
+
+            <div class="mode-group mode-study">
+                <h3>📚 じっくり勉強モード</h3>
+                <p>しっかり記憶に定着させたい時に</p>
+                <button id="select-count-15">15問</button>
+                <button id="select-count-20">20問</button>
+                <button id="select-count-30">30問</button>
+            </div>
+
+            <button id="back-to-sub-from-count" style="margin-top: 20px; width: 100%;">戻る</button>
         </div>
     </div>
 

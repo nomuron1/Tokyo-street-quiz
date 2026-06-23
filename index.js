@@ -15,6 +15,7 @@ let currentHighlightedLayer = null;
 let currentQuizType = null; 
 let selectedQuizInitialData = null; 
 let filteredQuestionsByDiff = []; 
+let selectedQuestionCount = 0; // 選択された問題数を記憶
 
 // 検索用の変数
 let searchMarkers = [];
@@ -42,9 +43,12 @@ const backToMainFromQuizBtn = document.getElementById("back-to-main-from-quiz");
 const backToPrevFromDiffBtn = document.getElementById("back-to-prev-from-diff"); 
 const backToSubFromCountBtn = document.getElementById("back-to-sub-from-count");
 
+const selectCount3 = document.getElementById("select-count-3");
+const selectCount5 = document.getElementById("select-count-5");
+const selectCount10 = document.getElementById("select-count-10");
 const selectCount15 = document.getElementById("select-count-15");
+const selectCount20 = document.getElementById("select-count-20");
 const selectCount30 = document.getElementById("select-count-30");
-const selectCountAll = document.getElementById("select-count-all");
 
 const quizTitle = document.getElementById("quiz-title");
 const currentScoreSpan = document.getElementById("current-score");
@@ -160,15 +164,33 @@ function showSubSelection() {
   if (difficultySelectionDiv) difficultySelectionDiv.classList.add("hidden");
 }
 
-function showDifficultySelection(initialData) {
+// 1. クイズを選択したら、まずは【問題数選択画面】へ
+function showCountSelectionMenu(initialData) {
   selectedQuizInitialData = initialData;
   if (mainSelectionDiv) mainSelectionDiv.classList.add("hidden");
   if (subSelectionDiv) subSelectionDiv.classList.add("hidden");
-  if (difficultySelectionDiv) difficultySelectionDiv.classList.remove("hidden");
-  if (countSelectionDiv) countSelectionDiv.classList.add("hidden");
+  if (difficultySelectionDiv) difficultySelectionDiv.classList.add("hidden");
+  if (countSelectionDiv) countSelectionDiv.classList.remove("hidden");
+
+  // 全体データ数で一旦チェック（通常は十分足ります）
+  const count = initialData.length;
+  if (selectCount3) selectCount3.disabled = count < 3;
+  if (selectCount5) selectCount5.disabled = count < 5;
+  if (selectCount10) selectCount10.disabled = count < 10;
+  if (selectCount15) selectCount15.disabled = count < 15;
+  if (selectCount20) selectCount20.disabled = count < 20;
+  if (selectCount30) selectCount30.disabled = count < 30;
 }
 
-function applyDifficultyFilter(difficulty) {
+// 2. 問題数を選んだら、【難易度選択画面】へ
+function handleCountSelection(count) {
+  selectedQuestionCount = count;
+  if (countSelectionDiv) countSelectionDiv.classList.add("hidden");
+  if (difficultySelectionDiv) difficultySelectionDiv.classList.remove("hidden");
+}
+
+// 3. 難易度を選んだら、データを絞り込んで【クイズ開始】！
+function applyDifficultyFilterAndStart(difficulty) {
   let allowedRanks = [];
   if (difficulty === 'beginner') allowedRanks = [1];
   else if (difficulty === 'intermediate') allowedRanks = [1, 2];
@@ -184,18 +206,18 @@ function applyDifficultyFilter(difficulty) {
     return;
   }
 
-  showCountSelection(filteredQuestionsByDiff);
-}
+  let finalCount = selectedQuestionCount;
+  
+  // ★親切設計：選んだ難易度の問題数が希望より少なかった場合、最大数に自動調整して開始する
+  if (filteredQuestionsByDiff.length < selectedQuestionCount) {
+    alert(`選択された難易度の問題が ${filteredQuestionsByDiff.length} 問しかないため、出題数を自動調整して開始します。`);
+    finalCount = filteredQuestionsByDiff.length;
+  }
 
-function showCountSelection(data) {
+  // クイズ開始画面へ（難易度画面を隠す）
   if (difficultySelectionDiv) difficultySelectionDiv.classList.add("hidden");
-  if (countSelectionDiv) countSelectionDiv.classList.remove("hidden");
-
-  const count = data.length;
-  if (totalQuestionsDisplay) totalQuestionsDisplay.textContent = count;
-
-  if (selectCount15) selectCount15.disabled = count < 15;
-  if (selectCount30) selectCount30.disabled = count < 30;
+  
+  startQuiz(filteredQuestionsByDiff, finalCount);
 }
 
 function displayResult() {
@@ -799,8 +821,7 @@ if (selectStreetBtn) {
   selectStreetBtn.addEventListener("click", () => {
     currentQuizType = "street";
     if (quizTitle) quizTitle.textContent = "通り名クイズ";
-    showDifficultySelection(streetQuestions);
-  });
+    showCountSelectionMenu(streetQuestions); });
 }
 
 if (selectCrossBtn) selectCrossBtn.addEventListener("click", showSubSelection);
@@ -809,43 +830,43 @@ if (selectCrossNameBtn) {
   selectCrossNameBtn.addEventListener("click", () => {
     currentQuizType = "cross_name";
     if (quizTitle) quizTitle.textContent = "交差点クイズ (位置から名称)";
-    showDifficultySelection(crossQuestions);
-  });
+    showCountSelectionMenu(crossQuestions); });
 }
 
 if (selectCrossStreetBtn) {
   selectCrossStreetBtn.addEventListener("click", () => {
     currentQuizType = "cross_street";
     if (quizTitle) quizTitle.textContent = "交差点クイズ (交差する通りから名称)";
-    showDifficultySelection(crossQuestions);
-  });
+    showCountSelectionMenu(crossQuestions); });
 }
 
-if (selectDiffBeginner) selectDiffBeginner.addEventListener("click", () => applyDifficultyFilter('beginner'));
-if (selectDiffIntermediate) selectDiffIntermediate.addEventListener("click", () => applyDifficultyFilter('intermediate'));
-if (selectDiffAdvanced) selectDiffAdvanced.addEventListener("click", () => applyDifficultyFilter('advanced'));
+if (selectDiffBeginner) selectDiffBeginner.addEventListener("click", () => applyDifficultyFilterAndStart('beginner'));
+if (selectDiffIntermediate) selectDiffIntermediate.addEventListener("click", () => applyDifficultyFilterAndStart('intermediate'));
+if (selectDiffAdvanced) selectDiffAdvanced.addEventListener("click", () => applyDifficultyFilterAndStart('advanced'));
 
-if (backToPrevFromDiffBtn) {
-  backToPrevFromDiffBtn.addEventListener("click", () => {
+if (backToSubFromCountBtn) {
+  backToSubFromCountBtn.addEventListener("click", () => {
     if (currentQuizType === "street") showMainSelection();
     else showSubSelection();
   });
 }
 
-if (backToSubFromCountBtn) {
-  backToSubFromCountBtn.addEventListener("click", () => {
-    if (countSelectionDiv) countSelectionDiv.classList.add("hidden");
-    if (difficultySelectionDiv) difficultySelectionDiv.classList.remove("hidden");
-  });
+if (backToPrevFromDiffBtn) {
+  backToPrevFromDiffBtn.addEventListener("click", () => {
+    if (difficultySelectionDiv) difficultySelectionDiv.classList.add("hidden");
+    if (countSelectionDiv) countSelectionDiv.classList.remove("hidden");
+    });
 }
 
 if (backToMainFromSubBtn) backToMainFromSubBtn.addEventListener("click", showMainSelection);
 if (backToMainFromQuizBtn) backToMainFromQuizBtn.addEventListener("click", showMainSelection);
 
-if (selectCount15) selectCount15.addEventListener("click", () => startQuiz(filteredQuestionsByDiff, 15));
-if (selectCount30) selectCount30.addEventListener("click", () => startQuiz(filteredQuestionsByDiff, 30));
-if (selectCountAll) selectCountAll.addEventListener("click", () => startQuiz(filteredQuestionsByDiff, "all"));
-
+if (selectCount3) selectCount3.addEventListener("click", () => handleCountSelection(3));
+if (selectCount5) selectCount5.addEventListener("click", () => handleCountSelection(5));
+if (selectCount10) selectCount10.addEventListener("click", () => handleCountSelection(10));
+if (selectCount15) selectCount15.addEventListener("click", () => handleCountSelection(15));
+if (selectCount20) selectCount20.addEventListener("click", () => handleCountSelection(20));
+if (selectCount30) selectCount30.addEventListener("click", () => handleCountSelection(30));
 // 検索用のイベントリスナー
 if (searchSubmitBtn) searchSubmitBtn.addEventListener("click", performSearch);
 if (searchInput) {

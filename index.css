@@ -46,6 +46,42 @@ body {
   text-align-last: center;
 }
 
+/* --- モード選択画面のスタイル --- */
+.mode-group {
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.mode-group h3 {
+  margin: 0 0 5px 0;
+  font-size: 1.2em;
+}
+
+.mode-group p {
+  margin: 0 0 15px 0;
+  font-size: 0.85em;
+  color: #555;
+}
+
+.mode-quick {
+  background-color: #e8f5e9; /* 薄い緑 */
+  border: 2px solid #a5d6a7;
+}
+
+.mode-study {
+  background-color: #e3f2fd; /* 薄い青 */
+  border: 2px solid #90caf9;
+}
+
+/* ボタンを横並びにしやすくする */
+.mode-group button {
+  margin: 5px;
+  padding: 10px 15px;
+  min-width: 80px;
+}
+
 /*☆クイズの結果の表示用のスタイル*/
 #quiz-result-overlay {
   position: fixed;
