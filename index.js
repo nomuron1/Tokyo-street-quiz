@@ -194,7 +194,7 @@ function applyDifficultyFilterAndStart(difficulty) {
   let allowedRanks = [];
   if (difficulty === 'beginner') allowedRanks = [1];
   else if (difficulty === 'intermediate') allowedRanks = [1, 2];
-  else if (difficulty === 'advanced') allowedRanks = [2, 3];
+  else if (difficulty === 'advanced') allowedRanks = [3, 4];
 
   filteredQuestionsByDiff = selectedQuizInitialData.filter(f => {
     if (!f.properties || !f.properties.rank) return false;
