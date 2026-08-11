@@ -191,14 +191,41 @@ function handleCountSelection(count) {
 
 // 3. 難易度を選んだら、データを絞り込んで【クイズ開始】！
 function applyDifficultyFilterAndStart(difficulty) {
+  currentDifficulty = difficulty;
   let allowedRanks = [];
-  if (difficulty === 'beginner') allowedRanks = [1];
-  else if (difficulty === 'intermediate') allowedRanks = [1, 2];
-  else if (difficulty === 'advanced') allowedRanks = [3, 4];
 
+  // クイズの種類ごとに、初級・中級・上級に割り当てるランク番号を分岐
+  if (currentQuizType === "cross_name") {
+    // 【交差点：位置から名称を当てる場合】のランク割り当て
+    if (difficulty === 'beginner') allowedRanks = [1, 7];
+    else if (difficulty === 'intermediate') allowedRanks = [1, 2, 5, 7];
+    else if (difficulty === 'advanced') allowedRanks = [2, 3, 6, 8];
+
+  } else if (currentQuizType === "cross_street") {
+    // 【交差点：交差道路から名称を当てる場合】のランク割り当て
+    if (difficulty === 'beginner') allowedRanks = [1];
+    else if (difficulty === 'intermediate') allowedRanks = [2];
+    else if (difficulty === 'advanced') allowedRanks = [3, 4]; // 例: より広いランクを上級に指定
+
+  } else {
+    // 【通り名クイズ】のデフォルト割り当て
+    if (difficulty === 'beginner') allowedRanks = [1];
+    else if (difficulty === 'intermediate') allowedRanks = [1, 2];
+    else if (difficulty === 'advanced') allowedRanks = [2, 3];
+  }
+
+  // 難易度によるフィルター処理
   filteredQuestionsByDiff = selectedQuizInitialData.filter(f => {
-    if (!f.properties || !f.properties.rank) return false;
-    return allowedRanks.includes(Number(f.properties.rank));
+    if (!f.properties) return false;
+
+    // GeoJSON側で「rank_street」のようにプロパティ名自体を分けている場合はここで参照先を自動切り替え
+    let targetRank = f.properties.rank;
+    if (currentQuizType === "cross_street" && f.properties.rank_street !== undefined) {
+      targetRank = f.properties.rank_street;
+    }
+
+    if (targetRank === undefined || targetRank === null) return false;
+    return allowedRanks.includes(Number(targetRank));
   });
 
   if (filteredQuestionsByDiff.length === 0) {
@@ -208,13 +235,11 @@ function applyDifficultyFilterAndStart(difficulty) {
 
   let finalCount = selectedQuestionCount;
   
-  // ★親切設計：選んだ難易度の問題数が希望より少なかった場合、最大数に自動調整して開始する
   if (filteredQuestionsByDiff.length < selectedQuestionCount) {
     alert(`選択された難易度の問題が ${filteredQuestionsByDiff.length} 問しかないため、出題数を自動調整して開始します。`);
     finalCount = filteredQuestionsByDiff.length;
   }
 
-  // クイズ開始画面へ（難易度画面を隠す）
   if (difficultySelectionDiv) difficultySelectionDiv.classList.add("hidden");
   
   startQuiz(filteredQuestionsByDiff, finalCount);
